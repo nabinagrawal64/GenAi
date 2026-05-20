@@ -1,0 +1,18 @@
+{
+  "name": "genai-invoke",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tavily/core": "^0.7.3",
+    "dotenv": "^17.4.2",
+    "groq-sdk": "^1.2.0"
+  }
+}
