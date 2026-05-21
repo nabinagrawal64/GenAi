@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
 const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
 // TOOL
