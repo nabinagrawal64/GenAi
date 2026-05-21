@@ -38,5 +38,5 @@ export async function indexTheDocument(filePath) {
     });
 
     await vectorStore.addDocuments(documents);
-    // console.log("Document indexed successfully");
+    console.log("Document indexed successfully");
 }

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ChatDPT</title>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <style>
+            #chat-container::-webkit-scrollbar {
+                width: 10px;
+            }
+
+            #chat-container::-webkit-scrollbar-track {
+                background: #111827;
+            }
+
+            #chat-container::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #60a5fa, #2563eb);
+                border-radius: 9999px;
+                border: 2px solid #111827;
+            }
+
+            #chat-container::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #93c5fd, #3b82f6);
+            }
+        </style>
+    </head>
+
+    <body class="bg-neutral-950 text-white overflow-hidden">
+        <div class="flex h-screen flex-col">
+            <header class="border-b border-white/5 bg-neutral-950/80 backdrop-blur px-4 py-3">
+                <div class="mx-auto flex w-full max-w-3xl items-center justify-between">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.3em] text-neutral-500">Company Chatbot</p>
+                        <h1 class="text-lg font-semibold text-white">Ask with memory and RAG</h1>
+                    </div>
+                </div>
+            </header>
+
+            <main
+                id="chat-container"
+                class="flex-1 w-full overflow-y-auto px-4 py-6 scroll-smooth"
+            >
+                <div id="message-list" class="mx-auto flex w-full max-w-3xl flex-col">
+                    <!-- Messages go here -->
+                </div>
+            </main>
+
+            <div class="border-t border-white/5 bg-neutral-950/90 px-4 py-4 backdrop-blur">
+                <div class="mx-auto w-full max-w-3xl">
+                    <div class="relative rounded-[28px] border border-neutral-700 bg-neutral-800/95 px-3 py-3 shadow-2xl transition-all focus-within:ring-2 focus-within:ring-blue-500/50">
+                        <button
+                            type="button"
+                            class="absolute left-4 bottom-4 flex h-9 w-9 items-center justify-center rounded-full bg-neutral-700 text-neutral-200 transition-colors hover:bg-neutral-600"
+                            aria-label="Add attachment"
+                        >
+                            <span class="text-2xl mb-1.5 leading-none">+</span>
+                        </button>
+
+                        <textarea
+                            placeholder="Ask me anything..."
+                            aria-label="input"
+                            class="w-full resize-none bg-transparent py-2 pl-12 pr-14 max-h-40 overflow-y-auto caret-white text-white placeholder-neutral-500 outline-none"
+                            rows="1"
+                            id="input"
+                        ></textarea>
+
+                        <button
+                            id="ask"
+                            type="button"
+                            class="absolute right-4 bottom-4 flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg transition-colors duration-200 hover:bg-blue-400 active:scale-95"
+                            aria-label="Send message"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="h-3.5 w-3.5">
+                                <path d="M22 2L11 13"></path>
+                                <path d="M22 2l-7 20-4-9-9-4 20-7Z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="./script.js"></script>
+    </body>
+</html>
