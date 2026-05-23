@@ -609,7 +609,7 @@ export function Home() {
                 {/* Chat Section */}
                 <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black" style={{ minHeight: 0 }}>
                     {/* Chat Header */}
-                    <header className="flex items-center justify-between px-5 py-2 md:px-6">
+                    <header className="flex items-center justify-between px-5 py-2 md:mt-0 mt-3 md:px-6">
                         <button
                             type="button"
                             onClick={() => setIsMobileMenuOpen(true)}
