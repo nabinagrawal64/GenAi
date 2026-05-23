@@ -33,13 +33,13 @@ dotenv.config();
 
 // Initialise the tool node
 const tools = [
-    createEventTool, 
-    getEventsTool, 
+    createEventTool,
+    getEventsTool,
     getAllEventsTool,
-    deleteEventTool, 
-    updateEventTool, 
-    dailySummaryTool, 
-    analyticsTool, 
+    deleteEventTool,
+    updateEventTool,
+    dailySummaryTool,
+    analyticsTool,
     savePreferenceTool,
     listCalendarsTool
 ];
@@ -47,14 +47,14 @@ const toolNode = new ToolNode(tools);
 
 // Initialise the LLM (authenticated users — has calendar tools)
 const llm = new ChatGroq({
-    model: 'openai/gpt-oss-120b',
+    model: 'groq/compound',
     temperature: 0,
     maxRetries: 2,
 }).bindTools(tools);
 
 // Guest LLM — no tools, uses GUEST_SYSTEM_PROMPT
 const guestLlm = new ChatGroq({
-    model: 'openai/gpt-oss-120b',
+    model: 'groq/compound',
     temperature: 0,
     maxRetries: 2,
 });
@@ -126,18 +126,18 @@ const workflowApp = workflow.compile();
 
 const app = express();
 app.use(
-	cors({
-		origin: process.env.CLIENT_URL || 'http://localhost:5173',
-		credentials: true,
-	})
+    cors({
+        origin: process.env.CLIENT_URL || 'http://localhost:5173',
+        credentials: true,
+    })
 );
 
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => { 
-    res.send("Backend running"); 
-}); 
+app.get("/", (req, res) => {
+    res.send("Backend running");
+});
 
 app.get('/chat/sessions', async (req, res) => {
     try {
@@ -260,7 +260,7 @@ app.post('/chat', async (req, res) => {
     try {
         const { message, threadId = '1', previousMessages: guestMessages } = req.body;
         const userId = req.headers['x-user-id'] || null;
-        
+
         if (!message) {
             return res.status(400).json({ error: 'Message is required' });
         }
@@ -316,7 +316,7 @@ app.post('/chat', async (req, res) => {
         }
 
         const lastMessage = finalState.messages[finalState.messages.length - 1];
-        
+
         res.json({
             reply: lastMessage.content,
         });
