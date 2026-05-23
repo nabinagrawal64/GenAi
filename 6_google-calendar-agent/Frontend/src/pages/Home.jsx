@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MessageBubble } from "@/components/MessageBubble";
 import { FaArrowUpLong } from "react-icons/fa6";
 import { auth, googleProvider } from "@/firebase/firebase";
-import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
 const SESSIONS_STORAGE_KEY = "calendar-agent-chat-sessions";
 
@@ -106,24 +106,6 @@ export function Home() {
         return () => unsubscribe();
     }, []);
 
-    // Capture Google token after signInWithRedirect completes on page load
-    useEffect(() => {
-        getRedirectResult(auth)
-            .then((result) => {
-                if (!result) return;
-                const credential = GoogleAuthProvider.credentialFromResult(result);
-                if (credential?.accessToken) {
-                    setGoogleToken(credential.accessToken);
-                    sessionStorage.setItem('g-cal-token', credential.accessToken);
-                }
-            })
-            .catch((err) => {
-                // Ignore no-user errors (normal when no redirect is in progress)
-                if (err.code !== 'auth/no-current-user') {
-                    console.error('Redirect sign-in error:', err);
-                }
-            });
-    }, []);
 
     useEffect(() => {
         const syncSessions = async () => {
@@ -374,16 +356,7 @@ export function Home() {
                 sessionStorage.setItem('g-cal-token', credential.accessToken);
             }
         } catch (error) {
-            if (error.code === 'auth/popup-blocked') {
-                // Browser blocked the popup — fall back to full-page redirect
-                try {
-                    await signInWithRedirect(auth, googleProvider);
-                } catch (redirectError) {
-                    console.error('Redirect login also failed:', redirectError);
-                }
-            } else {
-                console.error('Login failed:', error);
-            }
+            console.error('Login failed:', error);
         }
     };
 
