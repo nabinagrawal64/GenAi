@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MessageBubble } from "@/components/MessageBubble";
 import { FaArrowUpLong } from "react-icons/fa6";
 import { auth, googleProvider } from "@/firebase/firebase";
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
 
 const SESSIONS_STORAGE_KEY = "calendar-agent-chat-sessions";
 
@@ -33,7 +33,7 @@ const getFallbackSessionTitle = (message) => {
 
 const generateSessionTitle = async (message) => {
     try {
-        const res = await fetch("http://localhost:3000/chat/title", {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/title`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -106,12 +106,30 @@ export function Home() {
         return () => unsubscribe();
     }, []);
 
+    useEffect(() => {
+        const handleRedirectResult = async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    const credential = GoogleAuthProvider.credentialFromResult(result);
+                    if (credential?.accessToken) {
+                        setGoogleToken(credential.accessToken);
+                        sessionStorage.setItem('g-cal-token', credential.accessToken);
+                    }
+                }
+            } catch (error) {
+                console.error("Redirect login failed:", error);
+            }
+        };
+        handleRedirectResult();
+    }, []);
+
 
     useEffect(() => {
         const syncSessions = async () => {
             if (user) {
                 try {
-                    const res = await fetch("http://localhost:3000/chat/sessions", {
+                    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/sessions`, {
                         headers: {
                             "x-user-id": user.uid
                         }
@@ -124,7 +142,7 @@ export function Home() {
                             setActiveSession(fetchedSessions[0].id);
                         } else {
                             const initialSess = createSession();
-                            await fetch("http://localhost:3000/chat/sessions", {
+                            await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/sessions`, {
                                 method: "POST",
                                 headers: {
                                     "Content-Type": "application/json",
@@ -243,7 +261,7 @@ export function Home() {
 
             try {
                 const headers = { "x-user-id": user.uid };
-                const res = await fetch(`http://localhost:3000/chat/history/${activeSession}`, {
+                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/history/${activeSession}`, {
                     headers
                 });
                 const data = await res.json();
@@ -271,7 +289,7 @@ export function Home() {
 
         if (user) {
             try {
-                await fetch("http://localhost:3000/chat/sessions", {
+                await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/sessions`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -356,7 +374,17 @@ export function Home() {
                 sessionStorage.setItem('g-cal-token', credential.accessToken);
             }
         } catch (error) {
-            console.error('Login failed:', error);
+            console.error('Login failed, trying redirect fallback:', error);
+            if (error.code === 'auth/popup-blocked' || 
+                error.code === 'auth/cancelled-popup-request' ||
+                /popup/i.test(error.message) || 
+                /blocked/i.test(error.message)) {
+                try {
+                    await signInWithRedirect(auth, googleProvider);
+                } catch (redirectError) {
+                    console.error('Redirect login also failed:', redirectError);
+                }
+            }
         }
     };
 
