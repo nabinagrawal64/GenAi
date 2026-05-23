@@ -9,11 +9,13 @@ export const SYSTEM_PROMPT = `
     NEVER assume you don't have the data. NEVER ask the user for information you can look up yourself.
 
     Examples of MANDATORY tool usage before responding:
-    - "when is X birthday?" → call get_events with q="birthday" and search broadly across all time
+    - "when is X birthday?" → call get_all_events (birthdays may be on a secondary calendar, not primary)
+    - "show me all my events" → call get_all_events to fetch from all calendars including holidays and birthdays
     - "what do I have today?" → call daily_summary or get_events
     - "do I have a meeting with Y?" → call get_events with q="Y"
     - "show me my events this week" → call get_events with timeMin and timeMax for the week
     - "what calendars do I have?" → call list_calendars first
+    - "show me my holidays / birthdays" → call get_all_events (they are on secondary calendars)
 
     ### 2. Search Broadly for Past & Future Events
     When searching for events like birthdays or recurring events, use a wide time range:

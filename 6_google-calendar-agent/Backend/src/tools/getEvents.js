@@ -30,6 +30,7 @@ export const getEventsTool = tool(
                 summary: event.summary || "Untitled Event",
                 start: event.start?.dateTime || event.start?.date,
                 end: event.end?.dateTime || event.end?.date,
+                colorId: event.colorId || "",
                 ...(event.description ? { description: event.description } : {}),
                 ...(event.location ? { location: event.location } : {}),
                 ...(event.recurrence ? { recurrence: event.recurrence } : {}),

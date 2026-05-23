@@ -13,6 +13,7 @@ import { dailySummaryTool } from "./tools/dailySummary.js";
 import { analyticsTool } from "./tools/analyticsTool.js";
 import { savePreferenceTool } from "./tools/preferencesTool.js";
 import { listCalendarsTool } from "./tools/listCalendars.js";
+import { getAllEventsTool } from "./tools/getAllEvents.js";
 import { generateTitleWithAI } from "./utils/generateTitleWithAI.js";
 import { googleTokenContext } from "./services/googleAuth.js";
 import {
@@ -34,6 +35,7 @@ dotenv.config();
 const tools = [
     createEventTool, 
     getEventsTool, 
+    getAllEventsTool,
     deleteEventTool, 
     updateEventTool, 
     dailySummaryTool, 
