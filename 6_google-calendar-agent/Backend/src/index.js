@@ -27,7 +27,7 @@ import {
 } from "./services/firestoreMemory.js";
 
 import dotenv from 'dotenv';
-import 'dotenv/config';
+dotenv.config();
 
 // Initialise the tool node
 const tools = [
@@ -112,24 +112,16 @@ const workflowApp = workflow.compile();
 const app = express();
 app.use(
 	cors({
-		origin: [
-			"http://localhost:5173",
-			"https://calgpt-one.vercel.app/",
-		],
-
-		methods: [
-			"GET",
-			"POST",
-			"PUT",
-			"DELETE",
-			"OPTIONS",
-		],
-
+		origin: process.env.CLIENT_URL || 'http://localhost:5173',
 		credentials: true,
 	})
 );
 
 app.use(express.json());
+
+app.get("/", (req, res) => { 
+    res.send("Backend running"); 
+}); 
 
 app.get('/chat/sessions', async (req, res) => {
     try {
@@ -323,8 +315,5 @@ const PORT = process.env.PORT || 3000;
 //     console.log(`Server is running on port ${PORT}`);
 // });
 
-app.get("/", (req, res) => { 
-    res.send("Backend running"); 
-}); 
 
 export default app;
