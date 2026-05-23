@@ -124,7 +124,6 @@ export function Home() {
         handleRedirectResult();
     }, []);
 
-
     useEffect(() => {
         const syncSessions = async () => {
             if (user) {
@@ -610,7 +609,6 @@ export function Home() {
                 {/* Chat Section */}
                 <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black" style={{ minHeight: 0 }}>
                     {/* Chat Header */}
-
                     <header className="flex items-center justify-between px-5 py-2 md:px-6">
                         <button
                             type="button"
@@ -662,7 +660,7 @@ export function Home() {
                     </div>
 
                     {/* Input Chat */}
-                    <form onSubmit={handleSubmit} className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                    <form onSubmit={handleSubmit} className="shrink-0 px-4 pb-4">
                         <div className={`mx-auto flex w-full max-w-190 rounded-[2rem] border border-white/10 bg-[#242424] md:px-3 md:py-2 px-2 py-1 ${isComposerExpanded ? "flex-col" : "items-end"}`}>
                             {!isComposerExpanded && (
                                 <button type="button" className="flex size-9 shrink-0 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10">

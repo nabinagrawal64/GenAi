@@ -12,6 +12,7 @@ import { updateEventTool } from "./tools/updateEventTool.js";
 import { dailySummaryTool } from "./tools/dailySummary.js";
 import { analyticsTool } from "./tools/analyticsTool.js";
 import { savePreferenceTool } from "./tools/preferencesTool.js";
+import { listCalendarsTool } from "./tools/listCalendars.js";
 import { generateTitleWithAI } from "./utils/generateTitleWithAI.js";
 import { googleTokenContext } from "./services/googleAuth.js";
 import {
@@ -37,7 +38,8 @@ const tools = [
     updateEventTool, 
     dailySummaryTool, 
     analyticsTool, 
-    savePreferenceTool
+    savePreferenceTool,
+    listCalendarsTool
 ];
 const toolNode = new ToolNode(tools);
 
@@ -57,10 +59,21 @@ const guestLlm = new ChatGroq({
 
 // call the LLM using APIs
 async function callModel(state) {
+    const currentDateTimeStr = new Date().toLocaleString('en-US', {
+        timeZone: 'Asia/Kolkata', // Use India timezone as user local time is UTC+5:30
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short'
+    });
     const response = await llm.invoke([
         {
             role: "system",
-            content: SYSTEM_PROMPT,
+            content: `${SYSTEM_PROMPT}\n\nActive System Context:\n- Current Time: ${currentDateTimeStr}\n- Current ISO Instant: ${new Date().toISOString()}`,
         },
         ...state.messages,
     ]);
