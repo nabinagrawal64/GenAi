@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getCalendarClient } from "../services/googleAuth.js";
 
 export const getAllEventsTool = tool(
-    async ({ days = 30 }) => {
+    async ({ days = 30, pastDays = 365, q }) => {
         try {
             const calendar = await getCalendarClient();
 
@@ -13,23 +13,25 @@ export const getAllEventsTool = tool(
 
             let allEvents = [];
 
-            const timeMin = new Date().toISOString();
-            const timeMax = new Date(
-                Date.now() + days * 24 * 60 * 60 * 1000
-            ).toISOString();
+            // Search back pastDays into the past AND forward `days` into the future
+            // This is critical for birthdays — e.g., if birthday was Jan 1 and today is May,
+            // we still need to find the Jan 1 event this year for context.
+            const timeMin = new Date(Date.now() - pastDays * 24 * 60 * 60 * 1000).toISOString();
+            const timeMax = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
             for (const cal of calendars) {
                 try {
-                    // FIX: was missing `await` — this was causing silent failures
-                    const response = await calendar.events.list({
+                    const params = {
                         calendarId: cal.id,
                         timeMin,
                         timeMax,
                         singleEvents: true,
-                        orderBy: "startTime",
-                        maxResults: 50,
-                    });
+                        maxResults: 100,
+                        // orderBy can only be used when q is absent
+                        ...(q ? { q } : { orderBy: "startTime" }),
+                    };
 
+                    const response = await calendar.events.list(params);
                     const events = response.data.items || [];
 
                     const formatted = events.map((event) => ({
@@ -37,7 +39,7 @@ export const getAllEventsTool = tool(
                         title: event.summary || "Untitled Event",
                         start: event.start?.dateTime || event.start?.date,
                         end: event.end?.dateTime || event.end?.date,
-                        // Color info for visually-intelligent rendering
+                        // Color info for visual rendering
                         colorId: event.colorId || "",
                         calendarColor: cal.backgroundColor || "",
                         calendarForeground: cal.foregroundColor || "",
@@ -64,11 +66,13 @@ export const getAllEventsTool = tool(
                 }
             }
 
-            // Sort all events chronologically
+            // Sort chronologically
             allEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
 
             if (allEvents.length === 0) {
-                return `No events found in the next ${days} days across any calendar.`;
+                return q
+                    ? `No events matching "${q}" found across any calendar.`
+                    : `No events found across any calendar in the searched range.`;
             }
 
             return JSON.stringify(allEvents);
@@ -79,9 +83,11 @@ export const getAllEventsTool = tool(
     },
     {
         name: "get_all_events",
-        description: "Fetch all upcoming events from ALL calendars (primary, birthdays, holidays, reminders, shared, and secondary). Each event includes colorId and calendarColor for visual color-coding like Google Calendar. Use this when the user asks about everything on their calendar, or when searching a specific calendar type like birthdays or holidays.",
+        description: "Fetch events from ALL calendars (primary, birthdays, holidays, reminders, shared, secondary). Searches both past and upcoming events. Each event includes colorId and calendarColor for visual color-coding. Use this for: birthdays, holidays, cross-calendar summaries, or when searching for a person's events across all calendars.",
         schema: z.object({
-            days: z.number().optional().describe("Number of days ahead to fetch events. Defaults to 30."),
+            days: z.number().optional().describe("Number of days AHEAD to search. Default 30. Use 365 for a full year ahead."),
+            pastDays: z.number().optional().describe("Number of days INTO THE PAST to search. Default 365 (1 year back). Use this to find birthdays or events that may have already occurred this year."),
+            q: z.string().optional().describe("Optional search query to filter events by keyword or name (e.g., 'Deben', 'birthday', 'meeting')."),
         }),
     }
 );

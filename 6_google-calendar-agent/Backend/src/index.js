@@ -47,14 +47,14 @@ const toolNode = new ToolNode(tools);
 
 // Initialise the LLM (authenticated users — has calendar tools)
 const llm = new ChatGroq({
-    model: 'groq/compound',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     temperature: 0,
     maxRetries: 2,
 }).bindTools(tools);
 
 // Guest LLM — no tools, uses GUEST_SYSTEM_PROMPT
 const guestLlm = new ChatGroq({
-    model: 'groq/compound',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     temperature: 0,
     maxRetries: 2,
 });
