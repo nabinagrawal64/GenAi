@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MessageBubble } from "@/components/MessageBubble";
 import { FaArrowUpLong } from "react-icons/fa6";
 import { auth, googleProvider } from "@/firebase/firebase";
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
 
 const SESSIONS_STORAGE_KEY = "calendar-agent-chat-sessions";
 
@@ -104,6 +104,25 @@ export function Home() {
             }
         });
         return () => unsubscribe();
+    }, []);
+
+    // Capture Google token after signInWithRedirect completes on page load
+    useEffect(() => {
+        getRedirectResult(auth)
+            .then((result) => {
+                if (!result) return;
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                if (credential?.accessToken) {
+                    setGoogleToken(credential.accessToken);
+                    sessionStorage.setItem('g-cal-token', credential.accessToken);
+                }
+            })
+            .catch((err) => {
+                // Ignore no-user errors (normal when no redirect is in progress)
+                if (err.code !== 'auth/no-current-user') {
+                    console.error('Redirect sign-in error:', err);
+                }
+            });
     }, []);
 
     useEffect(() => {
@@ -355,7 +374,16 @@ export function Home() {
                 sessionStorage.setItem('g-cal-token', credential.accessToken);
             }
         } catch (error) {
-            console.error("Login failed:", error);
+            if (error.code === 'auth/popup-blocked') {
+                // Browser blocked the popup — fall back to full-page redirect
+                try {
+                    await signInWithRedirect(auth, googleProvider);
+                } catch (redirectError) {
+                    console.error('Redirect login also failed:', redirectError);
+                }
+            } else {
+                console.error('Login failed:', error);
+            }
         }
     };
 
@@ -544,8 +572,8 @@ export function Home() {
     const isComposerExpanded = draft.includes("\n") || isComposerWrapped;
 
     return (
-        <main className="min-h-screen bg-black text-white">
-            <div ref={containerRef} className="flex h-screen overflow-hidden relative">
+        <main className="bg-black text-white" style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+            <div ref={containerRef} className="flex overflow-hidden relative" style={{ flex: 1, minHeight: 0 }}>
                 <Sidebar
                     sessions={sessions}
                     activeSession={activeSession}
@@ -579,7 +607,7 @@ export function Home() {
                 </div>
 
                 {/* Chat Section */}
-                <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black">
+                <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-black" style={{ minHeight: 0 }}>
                     {/* Chat Header */}
 
                     <header className="flex items-center justify-between px-5 py-2 md:px-6">
@@ -633,8 +661,8 @@ export function Home() {
                     </div>
 
                     {/* Input Chat */}
-                    <form onSubmit={handleSubmit} className="shrink-0 px-4 pb-6">
-                        <div className={`mx-auto flex w-full max-w-190 rounded-[2rem] border border-white/10 bg-[#242424] md:px-3 md:py-2 px-2 py-1 ] ${isComposerExpanded ? "flex-col" : "items-end"}`}>
+                    <form onSubmit={handleSubmit} className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                        <div className={`mx-auto flex w-full max-w-190 rounded-[2rem] border border-white/10 bg-[#242424] md:px-3 md:py-2 px-2 py-1 ${isComposerExpanded ? "flex-col" : "items-end"}`}>
                             {!isComposerExpanded && (
                                 <button type="button" className="flex size-9 shrink-0 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10">
                                     <Plus className="size-6 mb-2.5" />
