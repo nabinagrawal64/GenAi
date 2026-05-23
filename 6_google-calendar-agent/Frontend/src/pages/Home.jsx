@@ -294,7 +294,7 @@ export function Home() {
     const handleSessionDelete = async (sessionId) => {
         if (user) {
             try {
-                await fetch(`http://localhost:3000/chat/sessions/${sessionId}`, {
+                await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/sessions/${sessionId}`, {
                     method: "DELETE",
                     headers: {
                         "x-user-id": user.uid
@@ -311,7 +311,7 @@ export function Home() {
             if (remainingSessions.length === 0) {
                 const nextSession = createSession();
                 if (user) {
-                    fetch("http://localhost:3000/chat/sessions", {
+                    fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/sessions`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -413,7 +413,7 @@ export function Home() {
                     )
                 );
                 if (user) {
-                    fetch("http://localhost:3000/chat/sessions", {
+                    fetch(`${import.meta.env.VITE_BACKEND_URL}/chat/sessions`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -445,7 +445,7 @@ export function Home() {
                     .map((m) => ({ role: m.role, content: m.content }))
                 : undefined;
 
-            const res = await fetch("http://localhost:3000/chat", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({

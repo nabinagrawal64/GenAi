@@ -110,7 +110,25 @@ const workflow = new StateGraph(MessagesAnnotation)
 const workflowApp = workflow.compile();
 
 const app = express();
-app.use(cors());
+app.use(
+	cors({
+		origin: [
+			"http://localhost:5173",
+			"https://calgpt-one.vercel.app/",
+		],
+
+		methods: [
+			"GET",
+			"POST",
+			"PUT",
+			"DELETE",
+			"OPTIONS",
+		],
+
+		credentials: true,
+	})
+);
+
 app.use(express.json());
 
 app.get('/chat/sessions', async (req, res) => {
@@ -301,6 +319,12 @@ app.post('/chat', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+// app.listen(PORT, () => {
+//     console.log(`Server is running on port ${PORT}`);
+// });
+
+app.get("/", (req, res) => { 
+    res.send("Backend running"); 
+}); 
+
+export default app;
