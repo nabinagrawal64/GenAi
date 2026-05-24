@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { ChatGroq } from '@langchain/groq';
+import { AIMessage } from '@langchain/core/messages';
 import { MessagesAnnotation, StateGraph } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 
@@ -69,6 +70,84 @@ const guestLlm = new ChatGroq({
 // Regex to detect queries that MUST use a tool (date/event/calendar questions)
 const DATE_EVENT_QUERY_RE = /when is|what date|which day|schedule|birthday|anniversary|holiday|festival|diwali|holi|eid|christmas|navratri|raksha|rakhi|puja|jayanti|event|remind|appointment|meeting|upcoming|today|tomorrow|this week|next week/i;
 
+function extractSearchEventQuery(text) {
+    const normalized = String(text || '').trim().replace(/[?!.,]+$/g, '');
+
+    const prefixes = [
+        /^when is\s+/i,
+        /^when's\s+/i,
+        /^what is\s+/i,
+        /^what date is\s+/i,
+        /^which day is\s+/i,
+        /^tell me about\s+/i,
+        /^show me\s+/i,
+        /^find\s+/i,
+        /^search for\s+/i,
+        /^look up\s+/i,
+    ];
+
+    let query = normalized;
+    for (const prefix of prefixes) {
+        query = query.replace(prefix, '');
+    }
+
+    return query.trim();
+}
+
+function isToolUseFailedError(error) {
+    return error?.status === 400
+        && (error?.error?.error?.code === 'tool_use_failed'
+            || error?.error?.code === 'tool_use_failed'
+            || String(error?.message || '').includes('tool_use_failed'));
+}
+
+function formatSearchEventReply(query, toolResult) {
+    const rawResult = typeof toolResult === 'string' ? toolResult : String(toolResult ?? '');
+
+    if (!rawResult) {
+        return `I searched for ${query} but did not receive a usable result.`;
+    }
+
+    if (rawResult.startsWith('No events found') || rawResult.startsWith('Failed to search')) {
+        return rawResult;
+    }
+
+    try {
+        const parsed = JSON.parse(rawResult);
+        const nextOccurrence = parsed?.nextOccurrence;
+
+        if (!nextOccurrence?.start) {
+            return rawResult;
+        }
+
+        const startDate = new Date(nextOccurrence.start);
+        const formattedDate = Number.isNaN(startDate.getTime())
+            ? nextOccurrence.start
+            : new Intl.DateTimeFormat('en-IN', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            }).format(startDate);
+
+        const formattedTime = nextOccurrence.start.includes('T')
+            ? new Intl.DateTimeFormat('en-IN', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+            }).format(startDate)
+            : '';
+
+        const title = nextOccurrence.title || query;
+        const calendar = nextOccurrence.calendar ? `\n- **Calendar:** ${nextOccurrence.calendar}` : '';
+        const timeLine = formattedTime ? `\n- **Time:** ${formattedTime}` : '';
+
+        return `### ${title}\n- **Next occurrence:** ${formattedDate}${timeLine}${calendar}`;
+    } catch {
+        return rawResult;
+    }
+}
+
 // call the LLM using APIs
 async function callModel(state) {
     const currentDateTimeStr = new Date().toLocaleString('en-US', {
@@ -116,15 +195,22 @@ async function callModel(state) {
     const isDateQuery = DATE_EVENT_QUERY_RE.test(lastContent);
     const shouldForceTool = isDateQuery && !hasToolResultInCurrentTurn && (lastMessage.role === 'user' || lastMessage.role === 'human' || lastMessage._getType?.() === 'human');
 
-    const invokeLlm = shouldForceTool
-        ? baseLlm.bindTools(tools, { tool_choice: 'any' })
-        : llm;
+    try {
+        const response = await llm.invoke([
+            systemMessage,
+            ...messages,
+        ]);
 
-    const response = await invokeLlm.invoke([
-        systemMessage,
-        ...messages,
-    ]);
-    return { messages: [response] };
+        return { messages: [response] };
+    } catch (error) {
+        if (shouldForceTool && isToolUseFailedError(error)) {
+            const searchQuery = extractSearchEventQuery(lastContent) || lastContent;
+            const toolResult = await searchEventTool.invoke({ query: searchQuery });
+            return { messages: [new AIMessage(formatSearchEventReply(searchQuery, toolResult))] };
+        }
+
+        throw error;
+    }
 }
 
 // whether to call a tool or end
