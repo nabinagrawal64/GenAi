@@ -164,18 +164,6 @@ function toPromptMessage(record) {
         baseMessage.name = record.name;
     }
 
-    if (record.toolCallId) {
-        baseMessage.tool_call_id = record.toolCallId;
-    }
-
-    if (record.toolCalls) {
-        baseMessage.tool_calls = record.toolCalls;
-    }
-
-    if (record.additionalKwargs) {
-        baseMessage.additional_kwargs = record.additionalKwargs;
-    }
-
     return stripUndefinedValues(baseMessage);
 }
 
