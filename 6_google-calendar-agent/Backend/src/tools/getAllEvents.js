@@ -1,9 +1,14 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { getCalendarClient } from "../services/googleAuth.js";
+import { coerceNum, coerceStr } from "./zHelpers.js";
 
 export const getAllEventsTool = tool(
-    async ({ days = 30, pastDays = 365, q }) => {
+    async ({ days: rawDays, pastDays: rawPastDays, q: rawQ }) => {
+        // Runtime coercion — LLM may pass strings or descriptor objects instead of plain values
+        const days = coerceNum(rawDays, 30);
+        const pastDays = coerceNum(rawPastDays, 365);
+        const q = rawQ ? coerceStr(rawQ) : undefined;
         try {
             const calendar = await getCalendarClient();
 
@@ -26,7 +31,7 @@ export const getAllEventsTool = tool(
                         timeMin,
                         timeMax,
                         singleEvents: true,
-                        maxResults: 100,
+                        maxResults: 250,
                         // orderBy can only be used when q is absent
                         ...(q ? { q } : { orderBy: "startTime" }),
                     };
@@ -85,9 +90,9 @@ export const getAllEventsTool = tool(
         name: "get_all_events",
         description: "Fetch events from ALL calendars (primary, birthdays, holidays, reminders, shared, secondary). Searches both past and upcoming events. Each event includes colorId and calendarColor for visual color-coding. Use this for: birthdays, holidays, cross-calendar summaries, or when searching for a person's events across all calendars.",
         schema: z.object({
-            days: z.number().optional().describe("Number of days AHEAD to search. Default 30. Use 365 for a full year ahead."),
-            pastDays: z.number().optional().describe("Number of days INTO THE PAST to search. Default 365 (1 year back). Use this to find birthdays or events that may have already occurred this year."),
-            q: z.string().optional().describe("Optional search query to filter events by keyword or name (e.g., 'Deben', 'birthday', 'meeting')."),
+            days: z.any().optional().describe("Number of days AHEAD to search. Default 30. Use 365 for a full year ahead."),
+            pastDays: z.any().optional().describe("Number of days INTO THE PAST to search. Default 365."),
+            q: z.any().optional().describe("Optional keyword to filter events (e.g., 'Deben', 'birthday', 'meeting')."),
         }),
     }
 );

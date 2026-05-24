@@ -1,9 +1,11 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { getCalendarClient } from "../services/googleAuth.js";
+import { coerceStr } from "./zHelpers.js";
 
 export const deleteEventTool = tool(
-    async ({ eventName }) => {
+    async ({ eventName: rawEventName }) => {
+        const eventName = coerceStr(rawEventName);
         try {
             const calendar = await getCalendarClient();
 
@@ -54,7 +56,7 @@ export const deleteEventTool = tool(
         `,
 
         schema: z.object({
-            eventName: z.string(),
+            eventName: z.any().describe("The name of the event to delete."),
         }),
     },
 );

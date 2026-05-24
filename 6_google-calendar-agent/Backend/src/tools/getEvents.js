@@ -1,9 +1,16 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { getCalendarClient } from "../services/googleAuth.js";
+import { coerceStr, coerceNum } from "./zHelpers.js";
 
 export const getEventsTool = tool(
-    async ({ calendarId = "primary", timeMin, timeMax, q, maxResults = 100 }) => {
+    async ({ calendarId: rawCalId, timeMin: rawTimeMin, timeMax: rawTimeMax, q: rawQ, maxResults: rawMax }) => {
+        // Runtime coercion — LLM may pass {type:"string",value:"X"} instead of "X"
+        const calendarId = coerceStr(rawCalId, "primary");
+        const timeMin = rawTimeMin ? coerceStr(rawTimeMin) : undefined;
+        const timeMax = rawTimeMax ? coerceStr(rawTimeMax) : undefined;
+        const q = rawQ ? coerceStr(rawQ) : undefined;
+        const maxResults = coerceNum(rawMax, 250);
         try {
             const calendar = await getCalendarClient();
 
@@ -44,11 +51,11 @@ export const getEventsTool = tool(
         name: "get_events",
         description: "Get calendar events with optional filtering by time range, search query, or calendar ID. Perfect for checking schedules or searching historical or future events (e.g. searching for 'birthday').",
         schema: z.object({
-            calendarId: z.string().optional().describe("The calendar ID to search. Defaults to 'primary'."),
-            timeMin: z.string().optional().describe("ISO string representing start of time range (e.g. '2026-05-23T00:00:00Z'). Use past dates to find historical events."),
-            timeMax: z.string().optional().describe("ISO string representing end of time range."),
-            q: z.string().optional().describe("Free-text query to search for events (e.g., 'birthday', 'meeting', 'dinner')."),
-            maxResults: z.number().optional().describe("Maximum number of events to return. Defaults to 100."),
+            calendarId: z.any().optional().describe("The calendar ID to search. Defaults to 'primary'."),
+            timeMin: z.any().optional().describe("ISO string for start of time range. Use past dates to find historical events."),
+            timeMax: z.any().optional().describe("ISO string for end of time range."),
+            q: z.any().optional().describe("Free-text query to search for events (e.g., 'birthday', 'meeting')."),
+            maxResults: z.any().optional().describe("Maximum number of events to return. Defaults to 250."),
         }),
     },
 );

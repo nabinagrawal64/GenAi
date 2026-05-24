@@ -1,9 +1,12 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { savePreference } from "../services/firestoreMemory.js";
+import { coerceStr } from "./zHelpers.js";
 
 export const savePreferenceTool = tool(
-    async ({ key, value }) => {
+    async ({ key: rawKey, value: rawValue }) => {
+        const key = coerceStr(rawKey);
+        const value = coerceStr(rawValue);
         await savePreference(key, value);
         
         return `
@@ -18,9 +21,8 @@ export const savePreferenceTool = tool(
             Save user preferences and habits.
         `,
         schema: z.object({
-            key: z.string(),
-
-            value: z.string(),
+            key: z.any().describe("Preference key/name."),
+            value: z.any().describe("Preference value to save."),
         }),
     },
 );

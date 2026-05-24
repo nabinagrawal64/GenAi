@@ -14,6 +14,8 @@ import { analyticsTool } from "./tools/analyticsTool.js";
 import { savePreferenceTool } from "./tools/preferencesTool.js";
 import { listCalendarsTool } from "./tools/listCalendars.js";
 import { getAllEventsTool } from "./tools/getAllEvents.js";
+import { searchBirthdayTool } from "./tools/searchBirthday.js";
+import { searchEventTool } from "./tools/searchEvent.js";
 import { generateTitleWithAI } from "./utils/generateTitleWithAI.js";
 import { googleTokenContext } from "./services/googleAuth.js";
 import {
@@ -36,6 +38,8 @@ const tools = [
     createEventTool,
     getEventsTool,
     getAllEventsTool,
+    searchBirthdayTool,
+    searchEventTool,
     deleteEventTool,
     updateEventTool,
     dailySummaryTool,
@@ -46,23 +50,29 @@ const tools = [
 const toolNode = new ToolNode(tools);
 
 // Initialise the LLM (authenticated users — has calendar tools)
-const llm = new ChatGroq({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    temperature: 0,
-    maxRetries: 2,
-}).bindTools(tools);
-
-// Guest LLM — no tools, uses GUEST_SYSTEM_PROMPT
-const guestLlm = new ChatGroq({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+// llama-3.3-70b-versatile has reliable OpenAI-compatible structured tool calling on Groq.
+const baseLlm = new ChatGroq({
+    model: 'llama-3.3-70b-versatile',
     temperature: 0,
     maxRetries: 2,
 });
 
+const llm = baseLlm.bindTools(tools);
+
+// Guest LLM — no tools, uses GUEST_SYSTEM_PROMPT
+const guestLlm = new ChatGroq({
+    model: 'llama-3.3-70b-versatile',
+    temperature: 0,
+    maxRetries: 2,
+});
+
+// Regex to detect queries that MUST use a tool (date/event/calendar questions)
+const DATE_EVENT_QUERY_RE = /when is|what date|which day|schedule|birthday|anniversary|holiday|festival|diwali|holi|eid|christmas|navratri|raksha|rakhi|puja|jayanti|event|remind|appointment|meeting|upcoming|today|tomorrow|this week|next week/i;
+
 // call the LLM using APIs
 async function callModel(state) {
     const currentDateTimeStr = new Date().toLocaleString('en-US', {
-        timeZone: 'Asia/Kolkata', // Use India timezone as user local time is UTC+5:30
+        timeZone: 'Asia/Kolkata',
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -72,12 +82,47 @@ async function callModel(state) {
         second: '2-digit',
         timeZoneName: 'short'
     });
-    const response = await llm.invoke([
-        {
-            role: "system",
-            content: `${SYSTEM_PROMPT}\n\nActive System Context:\n- Current Time: ${currentDateTimeStr}\n- Current ISO Instant: ${new Date().toISOString()}`,
-        },
-        ...state.messages,
+
+    const systemMessage = {
+        role: "system",
+        content: `${SYSTEM_PROMPT}\n\nActive System Context:\n- Current Time: ${currentDateTimeStr}\n- Current ISO Instant: ${new Date().toISOString()}`,
+    };
+
+    // Detect if this turn is a date/event question that has NOT yet
+    // had a tool call in the current turn. In that case force tool_choice="required"
+    // so the model cannot skip the tool and hallucinate from training data.
+    const messages = state.messages;
+    const lastMessage = messages[messages.length - 1];
+    const lastContent = typeof lastMessage?.content === 'string' ? lastMessage.content : '';
+    
+    // Find the last human message to isolate the current turn's messages
+    let lastHumanIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m.role === 'user' || m.role === 'human' || m._getType?.() === 'human') {
+            lastHumanIndex = i;
+            break;
+        }
+    }
+    
+    let hasToolResultInCurrentTurn = false;
+    if (lastHumanIndex !== -1) {
+        const messagesSinceLastHuman = messages.slice(lastHumanIndex + 1);
+        hasToolResultInCurrentTurn = messagesSinceLastHuman.some(
+            m => m._getType?.() === 'tool' || m.role === 'tool'
+        );
+    }
+
+    const isDateQuery = DATE_EVENT_QUERY_RE.test(lastContent);
+    const shouldForceTool = isDateQuery && !hasToolResultInCurrentTurn && (lastMessage.role === 'user' || lastMessage.role === 'human' || lastMessage._getType?.() === 'human');
+
+    const invokeLlm = shouldForceTool
+        ? baseLlm.bindTools(tools, { tool_choice: 'any' })
+        : llm;
+
+    const response = await invokeLlm.invoke([
+        systemMessage,
+        ...messages,
     ]);
     return { messages: [response] };
 }
@@ -85,7 +130,7 @@ async function callModel(state) {
 // whether to call a tool or end
 function shouldContinue(state) {
     const lastMessage = state.messages[state.messages.length - 1];
-    if (lastMessage.tool_calls.length > 0) {
+    if (lastMessage?.tool_calls?.length > 0) {
         return 'tools';
     }
     return '__end__';
@@ -326,9 +371,9 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// app.listen(PORT, () => {
-//     console.log(`Server is running on port ${PORT}`);
-// });
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 
 
 export default app;

@@ -1,12 +1,14 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-
 import { getCalendarClient } from "../services/googleAuth.js";
+import { coerceStr } from "./zHelpers.js";
 
 import { parseDateRange  } from "../utils/dateParser.js";
 
 export const updateEventTool = tool(
-    async ({ eventName, newDateText }) => {
+    async ({ eventName: rawEventName, newDateText: rawNewDateText }) => {
+        const eventName = coerceStr(rawEventName);
+        const newDateText = coerceStr(rawNewDateText);
         try {
             const calendar = await getCalendarClient();
 
@@ -64,8 +66,8 @@ export const updateEventTool = tool(
             Move events to new time/date.
         `,
         schema: z.object({
-            eventName: z.string(),
-            newDateText: z.string(),
+            eventName: z.any().describe("The name of the event to update/reschedule."),
+            newDateText: z.any().describe("The new date/time description (e.g. 'tomorrow at 4pm')."),
         }),
     },
 );

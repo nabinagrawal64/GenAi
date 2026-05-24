@@ -1,5 +1,6 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
+import { coerceStr, coerceBool } from "./zHelpers.js";
 
 import { getCalendarClient } from "../services/googleAuth.js";
 import { parseDateRange  } from "../utils/dateParser.js";
@@ -8,7 +9,11 @@ import { findNextFreeSlot } from "../utils/findFreeSlot.js";
 import { generateTitleWithAI  } from "../utils/generateTitleWithAI.js";
 
 export const createEventTool = tool(
-    async ({ summary, dateText, recurring }) => {
+    async ({ summary: rawSummary, dateText: rawDateText, recurring: rawRecurring }) => {
+        const summary = coerceStr(rawSummary);
+        const dateText = coerceStr(rawDateText);
+        const recurring = coerceBool(rawRecurring, false);
+
         try {
             const calendar = await getCalendarClient();
 
@@ -84,9 +89,9 @@ export const createEventTool = tool(
         `,
 
         schema: z.object({
-            summary: z.string(),
-            dateText: z.string(),
-            recurring: z.boolean().optional(),
+            summary: z.any().describe("Title of the event."),
+            dateText: z.any().describe("Natural language date/time description (e.g. 'tomorrow at 3pm')."),
+            recurring: z.any().optional().describe("Whether this event should repeat weekly."),
         }),
     },
 );
