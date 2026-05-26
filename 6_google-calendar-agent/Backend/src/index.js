@@ -4,6 +4,7 @@ import { ChatGroq } from '@langchain/groq';
 import { AIMessage } from '@langchain/core/messages';
 import { MessagesAnnotation, StateGraph } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
+import { client } from "./utils/gemini.js";
 
 import { SYSTEM_PROMPT, GUEST_SYSTEM_PROMPT } from "./prompts/systemPrompt.js"
 import { createEventTool } from "./tools/createEvent.js";
@@ -51,9 +52,9 @@ const tools = [
 const toolNode = new ToolNode(tools);
 
 // Initialise the LLM (authenticated users — has calendar tools)
-// llama-3.3-70b-versatile has reliable OpenAI-compatible structured tool calling on Groq.
+// openai/gpt-oss-120b has reliable OpenAI-compatible structured tool calling on Groq.
 const baseLlm = new ChatGroq({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     temperature: 0,
     maxRetries: 2,
 });
@@ -62,7 +63,7 @@ const llm = baseLlm.bindTools(tools);
 
 // Guest LLM — no tools, uses GUEST_SYSTEM_PROMPT
 const guestLlm = new ChatGroq({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     temperature: 0,
     maxRetries: 2,
 });
@@ -99,6 +100,11 @@ function isToolUseFailedError(error) {
         && (error?.error?.error?.code === 'tool_use_failed'
             || error?.error?.code === 'tool_use_failed'
             || String(error?.message || '').includes('tool_use_failed'));
+}
+
+function isDailySummaryToolFailure(error) {
+    const failedGeneration = error?.error?.error?.failed_generation || error?.error?.failed_generation || '';
+    return String(failedGeneration).includes('daily_summary');
 }
 
 function formatSearchEventReply(query, toolResult) {
@@ -146,6 +152,12 @@ function formatSearchEventReply(query, toolResult) {
     } catch {
         return rawResult;
     }
+}
+
+function shouldUseDailySummaryFallback(text) {
+    const normalized = String(text || '').toLowerCase();
+
+    return /\b(today|todays|today's|schedule today|daily summary|daily overview|what(?:'s| is) on my calendar|what do i have today|my schedule today|show my schedule|upcoming events today)\b/.test(normalized);
 }
 
 // call the LLM using APIs
@@ -204,6 +216,11 @@ async function callModel(state) {
         return { messages: [response] };
     } catch (error) {
         if (shouldForceTool && isToolUseFailedError(error)) {
+            if (shouldUseDailySummaryFallback(lastContent)) {
+                const toolResult = await dailySummaryTool.invoke({});
+                return { messages: [new AIMessage(String(toolResult))] };
+            }
+
             const searchQuery = extractSearchEventQuery(lastContent) || lastContent;
             const toolResult = await searchEventTool.invoke({ query: searchQuery });
             return { messages: [new AIMessage(formatSearchEventReply(searchQuery, toolResult))] };
@@ -452,14 +469,24 @@ app.post('/chat', async (req, res) => {
             reply: lastMessage.content,
         });
     } catch (error) {
+        if (isToolUseFailedError(error) && isDailySummaryToolFailure(error)) {
+            const fallbackReply = await googleTokenContext.run(googleToken, async () => {
+                const toolResult = await dailySummaryTool.invoke({});
+                return String(toolResult);
+            });
+
+            return res.json({ reply: fallbackReply });
+        }
+
         console.error('Error processing chat:', error);
         res.status(500).json({ error: 'Failed to process chat' });
     }
 });
 
-// app.listen(PORT, () => {
-//     console.log(`Server is running on port ${PORT}`);
-// });
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 
 
 export default app;
