@@ -1,0 +1,1 @@
+pnpm add chromadb langchain @langchain/core @langchain/community @langchain/textsplitters pdf-parse dotenv @langchain/tavily @huggingface/transformers @langchain/langgraph groq-sdk
